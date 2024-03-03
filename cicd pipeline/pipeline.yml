@@ -1,0 +1,37 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '14'
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: Build Docker Image
+      run: docker build -t your-docker-image-name .
+
+    - name: Push Docker Image to Registry
+      run: |
+        echo ${{ secrets.AWS_ACCESS_KEY_ID }} | docker login -u AWS --password-stdin ${{ secrets.AWS_REGISTRY }}
+        docker tag your-docker-image-name:latest ${{ secrets.AWS_REGISTRY }}/your-docker-image-name:latest
+        docker push ${{ secrets.AWS_REGISTRY }}/your-docker-image-name:latest
+
+    - name: Deploy to EC2
+      run: |
+        ssh-keyscan -t rsa your-ec2-ip-address >> $HOME/.ssh/known_hosts
+        scp -i path/to/your/private-key.pem docker-compose.yml ec2-user@your-ec2-ip-address:/path/to/remote/location
+        ssh -i path/to/your/private-key.pem ec2-user@your-ec2-ip-address 'docker-compose -f /path/to/remote/location/docker-compose.yml up -d'
